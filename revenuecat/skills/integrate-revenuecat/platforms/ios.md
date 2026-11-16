@@ -1,0 +1,104 @@
+# integrate-revenuecat: iOS (native)
+
+## Install
+
+Find the latest stable release at <https://github.com/RevenueCat/purchases-ios/releases> and substitute that tag for `<latest>` in the snippet below. If GitHub is unreachable, ask the user for a version to pin or check their existing project files for one.
+
+Pick the dependency manager already in use.
+
+### Swift Package Manager (preferred)
+
+In Xcode: **File → Add Package Dependencies…**, enter:
+
+```
+https://github.com/RevenueCat/purchases-ios-spm.git
+```
+
+This is the SPM mirror of `purchases-ios` that RevenueCat's install guide uses. It carries the same releases and products, downloads faster, and is the package the AdMob adapter depends on. If the app already depends on `https://github.com/RevenueCat/purchases-ios`, keep that package rather than adding a second one.
+
+Pick the version you resolved above and add the `RevenueCat` product to your app target. Also add `RevenueCatUI` if the user will want native paywalls later.
+
+For a `Package.swift`-based project:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/RevenueCat/purchases-ios-spm.git", from: "<latest>")
+],
+targets: [
+    .target(
+        name: "MyApp",
+        dependencies: [
+            .product(name: "RevenueCat", package: "purchases-ios-spm"),
+            // .product(name: "RevenueCatUI", package: "purchases-ios-spm"),
+        ]
+    )
+]
+```
+
+### CocoaPods
+
+```ruby
+# Podfile
+pod 'RevenueCat'
+# pod 'RevenueCatUI' # optional, for native paywalls
+```
+
+Then `pod install`.
+
+## Configure
+
+Call `Purchases.configure(withAPIKey:)` once at app launch.
+
+### SwiftUI `App`
+
+```swift
+import SwiftUI
+import RevenueCat
+
+@main
+struct MyApp: App {
+    init() {
+        Purchases.logLevel = .debug // remove for release
+        Purchases.configure(withAPIKey: "appl_YOUR_PUBLIC_SDK_KEY")
+    }
+
+    var body: some Scene {
+        WindowGroup { ContentView() }
+    }
+}
+```
+
+### UIKit `AppDelegate`
+
+```swift
+import UIKit
+import RevenueCat
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: "appl_YOUR_PUBLIC_SDK_KEY")
+        return true
+    }
+}
+```
+
+## Notes
+
+- Use the **iOS** public SDK key: it starts with `appl_`. Find it in the RevenueCat dashboard under Project → API keys.
+- Deployment target: the SDK requires iOS 13.0 or later, and the core async/await calls (`offerings()`, `customerInfo()`, `purchase(package:)`) work on every target it supports. A few newer APIs need more, such as refund requests (iOS 15) and `showStoreMessages` (iOS 16). Completion handler variants (`getOfferings(completion:)`, `purchase(product:completion:)`) are there for code that does not use async/await.
+- For sandbox testing with a StoreKit Configuration File, attach it to the scheme (Run → Options → StoreKit Configuration). See `revenuecat-testing-setup` when available.
+
+## Verify
+
+Build and run with `Purchases.logLevel = .debug` set before `configure`. The SDK logs its configure lines at debug level. In the Xcode console look for:
+
+```
+DEBUG: ℹ️ SDK Version - <version>
+```
+
+On iOS 14 and later the SDK logs through `os.Logger`, so lines start with the level (`DEBUG:`, `ERROR:`) and have no `[Purchases]` prefix.
+
+A wrong API key shows up at launch as an error containing `There was a credentials issue`. If the `SDK Version` line is missing with the log level at `.debug`, the configure call isn't running at launch, or a custom `Purchases.logHandler` is taking the logs.
